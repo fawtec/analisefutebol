@@ -951,32 +951,81 @@ def pagina_configurar_modelos():
     
     st.info("Defina os modelos de jogo que sua equipe utiliza para análise tática.")
     
-    for i, modelo in enumerate(st.session_state.modelos):
-        with st.expander(f"📋 {modelo.nome}"):
-            col1, col2 = st.columns(2)
-            with col1:
-                novo_nome = st.text_input("Nome:", modelo.nome, key=f"nome_{i}")
-            with col2:
-                nova_prioridade = st.slider(
-                    "Prioridade (1-5):",
-                    1, 5, modelo.prioridade,
-                    key=f"prio_{i}"
-                )
-            nova_descricao = st.text_area("Descrição:", modelo.descricao or "", key=f"desc_{i}")
-            
-            if st.button("Atualizar", key=f"up_{i}"):
-                st.session_state.modelos[i] = ModeloJogo(
-                    nome=novo_nome,
-                    prioridade=nova_prioridade,
-                    descricao=nova_descricao
-                )
-                st.success("Modelo atualizado!")
+    # Criar abas para melhor organização
+    tab_listar, tab_adicionar = st.tabs(["📋 Modelos Existentes", "➕ Adicionar Novo"])
     
-    if st.button("➕ Adicionar Novo Modelo", use_container_width=True):
-        st.session_state.modelos.append(
-            ModeloJogo("Novo Modelo", 3, "Descrição do modelo")
-        )
-        st.rerun()
+    with tab_listar:
+        if not st.session_state.modelos:
+            st.warning("Nenhum modelo cadastrado ainda.")
+        else:
+            for i, modelo in enumerate(st.session_state.modelos):
+                with st.expander(f"📋 {modelo.nome} (Prioridade: {modelo.prioridade}/5)"):
+                    col1, col2 = st.columns([3, 1])
+                    
+                    with col1:
+                        novo_nome = st.text_input("Nome:", modelo.nome, key=f"nome_{i}")
+                        nova_prioridade = st.slider(
+                            "Prioridade (1-5):",
+                            1, 5, modelo.prioridade,
+                            key=f"prio_{i}"
+                        )
+                        nova_descricao = st.text_area("Descrição:", modelo.descricao or "", key=f"desc_{i}")
+                    
+                    with col2:
+                        st.markdown("### Ações")
+                        
+                        # Botão de atualizar
+                        if st.button("🔄 Atualizar", key=f"up_{i}", use_container_width=True):
+                            st.session_state.modelos[i] = ModeloJogo(
+                                nome=novo_nome,
+                                prioridade=nova_prioridade,
+                                descricao=nova_descricao
+                            )
+                            st.success("Modelo atualizado!")
+                            st.rerun()
+                        
+                        st.markdown("---")
+                        
+                        # 🔥 BOTÃO DE EXCLUIR (com confirmação)
+                        if st.button("🗑️ Excluir", key=f"del_{i}", use_container_width=True, type="secondary"):
+                            # Usar session state para controlar a confirmação
+                            st.session_state[f"confirm_del_{i}"] = True
+                        
+                        # Mostrar confirmação se o botão foi clicado
+                        if st.session_state.get(f"confirm_del_{i}", False):
+                            st.warning(f"Tem certeza que deseja excluir '{modelo.nome}'?")
+                            col_conf1, col_conf2 = st.columns(2)
+                            with col_conf1:
+                                if st.button("✅ Sim", key=f"conf_sim_{i}", use_container_width=True):
+                                    # Remover o modelo
+                                    st.session_state.modelos.pop(i)
+                                    # Limpar flag de confirmação
+                                    st.session_state[f"confirm_del_{i}"] = False
+                                    st.success("Modelo excluído!")
+                                    st.rerun()
+                            with col_conf2:
+                                if st.button("❌ Não", key=f"conf_nao_{i}", use_container_width=True):
+                                    # Cancelar exclusão
+                                    st.session_state[f"confirm_del_{i}"] = False
+                                    st.rerun()
+    
+    with tab_adicionar:
+        st.subheader("➕ Adicionar Novo Modelo")
+        
+        with st.form("form_novo_modelo"):
+            novo_nome = st.text_input("Nome do modelo:", placeholder="Ex: Posse de Bola")
+            nova_prioridade = st.slider("Prioridade:", 1, 5, 3)
+            nova_descricao = st.text_area("Descrição:", placeholder="Descreva as características deste modelo...")
+            
+            if st.form_submit_button("✅ Criar Modelo", use_container_width=True, type="primary"):
+                if novo_nome:
+                    st.session_state.modelos.append(
+                        ModeloJogo(novo_nome, nova_prioridade, nova_descricao)
+                    )
+                    st.success(f"Modelo '{novo_nome}' criado com sucesso!")
+                    st.rerun()
+                else:
+                    st.error("Por favor, insira um nome para o modelo.")
 
 # =============================================================================
 # MAIN
