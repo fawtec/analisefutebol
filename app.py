@@ -8,10 +8,10 @@ from datetime import datetime
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 # Importações locais
-from adversarios import GerenciadorAdversarios
+from adversarios import GerenciadorAdversarios, Adversario
 from firebase_config import FirebaseManager
 from models import (
     EstatisticasTime, EstatisticasJogo, ContextoAdversario,
@@ -20,7 +20,6 @@ from models import (
 from analytics import (
     indice_desenvolvimento, calcular_metricas_jogo, calcular_dominio
 )
-from storage import salvar_jogos, carregar_jogos
 from utils import gerar_id
 
 # =============================================================================
@@ -57,6 +56,66 @@ st.markdown("""
 # INICIALIZAÇÃO DO ESTADO DA SESSÃO
 # =============================================================================
 
+def modelos_padrao():
+    """Retorna a lista padrÃ£o de modelos de jogo."""
+    return [
+        ModeloJogo("Posse de Bola", 5, "Controle do jogo com passes curtos"),
+        ModeloJogo("Contra-ataque", 3, "Explorar velocidade nos contra-golpes"),
+        ModeloJogo("PressÃ£o Alta", 4, "Marcar subindo, recuperar bola rÃ¡pido"),
+        ModeloJogo("TransiÃ§Ã£o RÃ¡pida", 4, "SaÃ­da rÃ¡pida ao ataque apÃ³s recuperaÃ§Ã£o"),
+    ]
+
+
+def carregar_modelos_sessao():
+    """Carrega modelos do Firebase e usa fallback local quando necessÃ¡rio."""
+    modelos_salvos = st.session_state.firebase.carregar_modelos()
+    if not modelos_salvos:
+        return modelos_padrao()
+
+    modelos = []
+    for modelo in modelos_salvos:
+        if isinstance(modelo, ModeloJogo):
+            modelos.append(modelo)
+            continue
+
+        modelos.append(
+            ModeloJogo(
+                modelo["nome"],
+                modelo["prioridade"],
+                modelo.get("descricao") or None
+            )
+        )
+
+    return modelos or modelos_padrao()
+
+
+def carregar_adversarios_sessao():
+    """Carrega adversÃ¡rios do Firebase e faz fallback para o arquivo local."""
+    gerenciador = GerenciadorAdversarios()
+    adversarios_firebase = st.session_state.firebase.carregar_adversarios()
+
+    if not adversarios_firebase:
+        return gerenciador
+
+    campos_validos = set(Adversario.__dataclass_fields__.keys())
+    adversarios_convertidos = {}
+
+    for adv_id, dados in adversarios_firebase.items():
+        if isinstance(dados, Adversario):
+            adversarios_convertidos[adv_id] = dados
+            continue
+
+        dados_limpos = {
+            chave: valor for chave, valor in dados.items()
+            if chave in campos_validos
+        }
+        dados_limpos.setdefault("id", adv_id)
+        adversarios_convertidos[adv_id] = Adversario(**dados_limpos)
+
+    gerenciador.adversarios = adversarios_convertidos
+    return gerenciador
+
+
 def inicializar_sessao():
     """Inicializa todas as variáveis de sessão necessárias"""
     
@@ -71,6 +130,9 @@ def inicializar_sessao():
     # Gerenciador de adversários
     if "gerenciador_adv" not in st.session_state:
         st.session_state.gerenciador_adv = GerenciadorAdversarios()
+    if "adversarios_sincronizados" not in st.session_state:
+        st.session_state.gerenciador_adv = carregar_adversarios_sessao()
+        st.session_state.adversarios_sincronizados = True
     
     # Carregar jogos do Firebase
     if "jogos" not in st.session_state:
@@ -87,6 +149,9 @@ def inicializar_sessao():
             ModeloJogo("Pressão Alta", 4, "Marcar subindo, recuperar bola rápido"),
             ModeloJogo("Transição Rápida", 4, "Saída rápida ao ataque após recuperação"),
         ]
+    if "modelos_sincronizados" not in st.session_state:
+        st.session_state.modelos = carregar_modelos_sessao()
+        st.session_state.modelos_sincronizados = True
 
 # =============================================================================
 # COMPONENTES DA INTERFACE
@@ -139,6 +204,7 @@ def sidebar_menu() -> str:
                 st.session_state.firebase.salvar_adversarios(
                     st.session_state.gerenciador_adv.adversarios
                 )
+                st.session_state.firebase.salvar_modelos(st.session_state.modelos)
                 st.success("✅ Dados salvos no Firebase!")
     
     return menu
@@ -384,23 +450,42 @@ def pagina_registrar_jogo():
                 st.session_state.jogos.append(jogo)
                 st.session_state.firebase.salvar_jogo(jogo)
                 
-                # Atualizar adversário
-                from adversarios import Adversario
-                adv_id = gerar_id()
-                novo_adv = Adversario(
-                    id=adv_id,
-                    nome=adversario_nome,
-                    nivel=adversario_nivel,
-                    estilo=adversario_estilo,
-                    formacao_base=adversario_formacao,
-                    observacoes=adversario_obs,
-                    vezes_jogado=1,
-                    vitorias=1 if gols_pro > gols_contra else 0,
-                    empates=1 if gols_pro == gols_contra else 0,
-                    derrotas=1 if gols_pro < gols_contra else 0,
-                    ultimo_jogo=datetime.now().strftime("%d/%m/%Y")
-                )
-                st.session_state.gerenciador_adv.adversarios[adv_id] = novo_adv
+                # Atualizar cadastro consolidado do adversário
+                adversario_existente = st.session_state.gerenciador_adv.buscar_por_nome(adversario_nome)
+
+                if adversario_existente:
+                    adversario_existente.nome = adversario_nome.strip()
+                    adversario_existente.nivel = adversario_nivel
+                    adversario_existente.estilo = adversario_estilo
+                    adversario_existente.formacao_base = adversario_formacao
+                    adversario_existente.observacoes = adversario_obs
+                    adversario_existente.vezes_jogado += 1
+                    adversario_existente.ultimo_jogo = datetime.now().strftime("%d/%m/%Y")
+
+                    if gols_pro > gols_contra:
+                        adversario_existente.vitorias += 1
+                    elif gols_pro == gols_contra:
+                        adversario_existente.empates += 1
+                    else:
+                        adversario_existente.derrotas += 1
+                else:
+                    adv_id = gerar_id()
+                    novo_adv = Adversario(
+                        id=adv_id,
+                        nome=adversario_nome.strip(),
+                        nivel=adversario_nivel,
+                        estilo=adversario_estilo,
+                        formacao_base=adversario_formacao,
+                        observacoes=adversario_obs,
+                        vezes_jogado=1,
+                        vitorias=1 if gols_pro > gols_contra else 0,
+                        empates=1 if gols_pro == gols_contra else 0,
+                        derrotas=1 if gols_pro < gols_contra else 0,
+                        ultimo_jogo=datetime.now().strftime("%d/%m/%Y")
+                    )
+                    st.session_state.gerenciador_adv.adversarios[adv_id] = novo_adv
+
+                st.session_state.gerenciador_adv.salvar()
                 st.session_state.firebase.salvar_adversarios(st.session_state.gerenciador_adv.adversarios)
                 
                 st.success("✅ Jogo registrado com sucesso!")
