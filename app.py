@@ -70,7 +70,7 @@ def carregar_modelos_sessao():
     """Carrega modelos do Firebase e usa fallback local quando necessÃ¡rio."""
     modelos_salvos = st.session_state.firebase.carregar_modelos()
     if not modelos_salvos:
-        return modelos_padrao()
+        return None
 
     modelos = []
     for modelo in modelos_salvos:
@@ -86,7 +86,7 @@ def carregar_modelos_sessao():
             )
         )
 
-    return modelos or modelos_padrao()
+    return modelos or None
 
 
 def carregar_adversarios_sessao():
@@ -150,7 +150,9 @@ def inicializar_sessao():
             ModeloJogo("Transição Rápida", 4, "Saída rápida ao ataque após recuperação"),
         ]
     if "modelos_sincronizados" not in st.session_state:
-        st.session_state.modelos = carregar_modelos_sessao()
+        modelos_carregados = carregar_modelos_sessao()
+        if modelos_carregados:
+            st.session_state.modelos = modelos_carregados
         st.session_state.modelos_sincronizados = True
 
 # =============================================================================
@@ -199,13 +201,20 @@ def sidebar_menu() -> str:
         # Botão salvar no Firebase
         if st.button("💾 Salvar no Firebase", use_container_width=True):
             with st.spinner("Salvando dados na nuvem..."):
+                jogos_ok = True
                 for jogo in st.session_state.jogos:
-                    st.session_state.firebase.salvar_jogo(jogo)
-                st.session_state.firebase.salvar_adversarios(
+                    if not st.session_state.firebase.salvar_jogo(jogo):
+                        jogos_ok = False
+
+                adversarios_ok = st.session_state.firebase.salvar_adversarios(
                     st.session_state.gerenciador_adv.adversarios
                 )
-                st.session_state.firebase.salvar_modelos(st.session_state.modelos)
-                st.success("✅ Dados salvos no Firebase!")
+                modelos_ok = st.session_state.firebase.salvar_modelos(st.session_state.modelos)
+
+                if jogos_ok and adversarios_ok and modelos_ok:
+                    st.success("✅ Dados salvos no Firebase!")
+                else:
+                    st.error("❌ Falha ao salvar no Firebase. Verifique as credenciais e a conexão.")
     
     return menu
 
@@ -331,7 +340,7 @@ def pagina_registrar_jogo():
         with col5:
             st.markdown("**🛡️ Defesa**")
             defesas = st.number_input("Defesas do goleiro:", 0, 20, 0, key="def_meu")
-            desarmes = st.number_input("Desarmes:", 0, 50, 0, key="des_meu")
+            desarmes = st.number_input("Desarmes:", 0, 100, 0, key="des_meu")
             faltas = st.number_input("Faltas cometidas:", 0, 50, 0, key="fal_meu")
         
         col6, col7 = st.columns(2)
@@ -360,7 +369,7 @@ def pagina_registrar_jogo():
         with col10:
             st.markdown("**🛡️ Defesa**")
             defesas_adv = st.number_input("Defesas adv:", 0, 20, 0, key="def_adv")
-            desarmes_adv = st.number_input("Desarmes adv:", 0, 50, 0, key="des_adv")
+            desarmes_adv = st.number_input("Desarmes adv:", 0, 100, 0, key="des_adv")
             faltas_adv = st.number_input("Faltas adv:", 0, 50, 0, key="fal_adv")
         
         col11, col12 = st.columns(2)
@@ -448,7 +457,7 @@ def pagina_registrar_jogo():
                 )
                 
                 st.session_state.jogos.append(jogo)
-                st.session_state.firebase.salvar_jogo(jogo)
+                jogo_salvo_firebase = st.session_state.firebase.salvar_jogo(jogo)
                 
                 # Atualizar cadastro consolidado do adversário
                 adversario_existente = st.session_state.gerenciador_adv.buscar_por_nome(adversario_nome)
@@ -486,9 +495,14 @@ def pagina_registrar_jogo():
                     st.session_state.gerenciador_adv.adversarios[adv_id] = novo_adv
 
                 st.session_state.gerenciador_adv.salvar()
-                st.session_state.firebase.salvar_adversarios(st.session_state.gerenciador_adv.adversarios)
-                
-                st.success("✅ Jogo registrado com sucesso!")
+                adversarios_salvos_firebase = st.session_state.firebase.salvar_adversarios(
+                    st.session_state.gerenciador_adv.adversarios
+                )
+
+                if jogo_salvo_firebase and adversarios_salvos_firebase:
+                    st.success("✅ Jogo registrado com sucesso!")
+                else:
+                    st.warning("⚠️ Jogo salvo localmente, mas não foi sincronizado com o Firebase.")
                 st.balloons()
                 
             except Exception as e:
