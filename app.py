@@ -314,8 +314,8 @@ def pagina_registrar_jogo():
         
         with col2:
             st.subheader("⚽ Placar")
-            gols_pro = st.number_input("Gols Marcados:", 0, 20, 0)
-            gols_contra = st.number_input("Gols Sofridos:", 0, 20, 0)
+            gols_pro = st.number_input("Gols Marcados:", 0, 30, 0)
+            gols_contra = st.number_input("Gols Sofridos:", 0, 30, 0)
             
             st.subheader("📋 Formação")
             formacao_usada = st.text_input("Formação do seu time:", "4-3-3")
@@ -328,26 +328,26 @@ def pagina_registrar_jogo():
         
         with col3:
             st.markdown("**⚔️ Ataque**")
-            finalizacoes = st.number_input("Finalizações:", 0, 50, 0, key="fin_meu")
+            finalizacoes = st.number_input("Finalizações:", 0, 80, 0, key="fin_meu")
             finalizacoes_alvo = st.number_input("No alvo:", 0, 50, 0, key="alvo_meu")
-            escanteios = st.number_input("Escanteios:", 0, 20, 0, key="esc_meu")
+            escanteios = st.number_input("Escanteios:", 0, 30, 0, key="esc_meu")
         
         with col4:
             st.markdown("**🔄 Posse e Passes**")
-            passes_certos = st.number_input("Passes certos:", 0, 500, 0, key="pass_c_meu")
+            passes_certos = st.number_input("Passes certos:", 0, 1000, 0, key="pass_c_meu")
             passes_errados = st.number_input("Passes errados:", 0, 500, 0, key="pass_e_meu")
         
         with col5:
             st.markdown("**🛡️ Defesa**")
-            defesas = st.number_input("Defesas do goleiro:", 0, 20, 0, key="def_meu")
-            desarmes = st.number_input("Desarmes:", 0, 100, 0, key="des_meu")
-            faltas = st.number_input("Faltas cometidas:", 0, 50, 0, key="fal_meu")
+            defesas = st.number_input("Defesas do goleiro:", 0, 30, 0, key="def_meu")
+            desarmes = st.number_input("Desarmes:", 0, 200, 0, key="des_meu")
+            faltas = st.number_input("Faltas cometidas:", 0, 80, 0, key="fal_meu")
         
         col6, col7 = st.columns(2)
         with col6:
             st.markdown("**🟨 Disciplina**")
-            amarelos = st.number_input("Cartões amarelos:", 0, 5, 0, key="am_meu")
-            vermelhos = st.number_input("Cartões vermelhos:", 0, 2, 0, key="verm_meu")
+            amarelos = st.number_input("Cartões amarelos:", 0, 10, 0, key="am_meu")
+            vermelhos = st.number_input("Cartões vermelhos:", 0, 5, 0, key="verm_meu")
         
         st.divider()
         
@@ -357,26 +357,26 @@ def pagina_registrar_jogo():
         
         with col8:
             st.markdown("**⚔️ Ataque**")
-            finalizacoes_adv = st.number_input("Finalizações adv:", 0, 50, 0, key="fin_adv")
+            finalizacoes_adv = st.number_input("Finalizações adv:", 0, 80, 0, key="fin_adv")
             finalizacoes_alvo_adv = st.number_input("No alvo adv:", 0, 50, 0, key="alvo_adv")
-            escanteios_adv = st.number_input("Escanteios adv:", 0, 20, 0, key="esc_adv")
+            escanteios_adv = st.number_input("Escanteios adv:", 0, 30, 0, key="esc_adv")
         
         with col9:
             st.markdown("**🔄 Posse e Passes**")
-            passes_certos_adv = st.number_input("Passes certos adv:", 0, 500, 0, key="pass_c_adv")
+            passes_certos_adv = st.number_input("Passes certos adv:", 0, 1000, 0, key="pass_c_adv")
             passes_errados_adv = st.number_input("Passes errados adv:", 0, 500, 0, key="pass_e_adv")
         
         with col10:
             st.markdown("**🛡️ Defesa**")
-            defesas_adv = st.number_input("Defesas adv:", 0, 20, 0, key="def_adv")
-            desarmes_adv = st.number_input("Desarmes adv:", 0, 100, 0, key="des_adv")
-            faltas_adv = st.number_input("Faltas adv:", 0, 50, 0, key="fal_adv")
+            defesas_adv = st.number_input("Defesas adv:", 0, 30, 0, key="def_adv")
+            desarmes_adv = st.number_input("Desarmes adv:", 0, 200, 0, key="des_adv")
+            faltas_adv = st.number_input("Faltas adv:", 0, 80, 0, key="fal_adv")
         
         col11, col12 = st.columns(2)
         with col11:
             st.markdown("**🟨 Disciplina**")
-            amarelos_adv = st.number_input("Amarelos adv:", 0, 5, 0, key="am_adv")
-            vermelhos_adv = st.number_input("Vermelhos adv:", 0, 2, 0, key="verm_adv")
+            amarelos_adv = st.number_input("Amarelos adv:", 0, 10, 0, key="am_adv")
+            vermelhos_adv = st.number_input("Vermelhos adv:", 0, 5, 0, key="verm_adv")
         
         st.divider()
         
